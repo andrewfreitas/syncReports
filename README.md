@@ -1,29 +1,45 @@
-# README #
+# leankeep
 
-This README would normally document whatever steps are necessary to get your application up and running.
+> Mongo Data Sync
 
-### What is this repository for? ###
+## About
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+This project uses [Feathers](http://feathersjs.com). An open source web framework for building modern real-time applications.
 
-### How do I get set up? ###
+## Getting Started
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+Getting up and running is as easy as 1, 2, 3.
 
-### Contribution guidelines ###
+1. Make sure you have [NodeJS](https://nodejs.org/) and [npm](https://www.npmjs.com/) installed.
+2. Install your dependencies
 
-* Writing tests
-* Code review
-* Other guidelines
+    ```
+    cd path/to/leankeep
+    npm install
+    ```
 
-### Who do I talk to? ###
+3. Start your app
 
-* Repo owner or admin
-* Other community or team contact
+    ```
+    npm start
+    ```
+
+## Testing
+
+Simply run `npm test` and all your tests in the `test/` directory will be run.
+
+## Scaffolding
+
+Feathers has a powerful command line interface. Here are a few things it can do:
+
+```
+$ npm install -g @feathersjs/cli          # Install Feathers CLI
+
+$ feathers generate service               # Generate a new Service
+$ feathers generate hook                  # Generate a new Hook
+$ feathers help                           # Show all commands
+```
+
+## Help
+
+For more information on all the things you can do with Feathers visit [docs.feathersjs.com](http://docs.feathersjs.com).

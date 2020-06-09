@@ -1,0 +1,60 @@
+{
+  "name": "leankeep",
+  "description": "Mongo Data Sync",
+  "version": "0.0.0",
+  "homepage": "",
+  "main": "src",
+  "keywords": [
+    "feathers"
+  ],
+  "author": {
+    "name": "Andre Freitsas",
+    "email": "you@example.com"
+  },
+  "contributors": [],
+  "bugs": {},
+  "directories": {
+    "lib": "src",
+    "test": "test/",
+    "config": "config/"
+  },
+  "engines": {
+    "node": "^10.0.0",
+    "npm": ">= 3.0.0"
+  },
+  "scripts": {
+    "test": "npm run eslint && npm run mocha",
+    "eslint": "eslint src/. test/. --config .eslintrc.json",
+    "dev": "nodemon src/",
+    "start": "node src/",
+    "mocha": "mocha test/ --recursive --exit"
+  },
+  "dependencies": {
+    "@feathersjs/configuration": "^4.5.3",
+    "@feathersjs/errors": "^4.5.3",
+    "@feathersjs/express": "^4.5.4",
+    "@feathersjs/feathers": "^4.5.3",
+    "@feathersjs/socketio": "^4.5.4",
+    "@feathersjs/transport-commons": "^4.5.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "cron": "^1.8.2",
+    "dotenv": "^8.2.0",
+    "feathers-memory": "^4.1.0",
+    "feathers-mongodb": "^6.1.0",
+    "helmet": "^3.22.0",
+    "knex": "^0.21.1",
+    "lodash": "^4.17.15",
+    "mongodb": "^3.5.8",
+    "mongodb-core": "^3.2.7",
+    "mssql": "^6.2.0",
+    "serve-favicon": "^2.5.0",
+    "winston": "^3.2.1"
+  },
+  "devDependencies": {
+    "axios": "^0.19.2",
+    "eslint": "^6.8.0",
+    "mocha": "^6.2.3",
+    "nodemon": "^2.0.4"
+  }
+}
