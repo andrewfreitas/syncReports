@@ -11,11 +11,15 @@ const {
 const { setTmp, removeData, commitPlan } = require('./query/mongo/plano-atividade')
 const { toApplications, toTasks } = require('./mapping/plano-atividade.toResponse')
 const moment = require('moment')
-
-const getActivityPlanTracking = (app) => {
+// '2020-04-04 19:20:30.983'
+const getActivityPlanTracking = (app, { preferences }) => {
   return app
     .get('knexInstance')
-    .raw(activityPlanTracking('2020-04-04 19:20:30.983'))
+    .raw(
+      activityPlanTracking(
+        moment()
+          .subtract(preferences.retroTime, preferences.retroTimeUnit)
+          .format('YYYY-MM-DD HH:MM:ss')))
 }
 
 const getActivityPlanApplication = (app, envelope) => (deps) => {
@@ -50,12 +54,13 @@ const getX = (app) => (deps) => {
     })
 }
 
-const startActivityPlanFlow = (app) => {
-  return getActivityPlanTracking(app)
+const startActivityPlanFlow = (app, params) => {
+  return getActivityPlanTracking(app, params)
     .then(trackingPlans => {
-      return Promise
+      Promise
         .all(trackingPlans.map(getX(app)))
         .then(setTmp(app))
+        // .then(removeData(app))
         .then(commitPlan(app))
     })
 }
@@ -64,7 +69,7 @@ module.exports = (app) => {
   let job = {}
   return {
     async find (params) {
-      return startActivityPlanFlow(app)
+      startActivityPlanFlow(app, params)
     },
     async create (data, params) {
       job = new Cron(params.preferences.cronPattern, () => startActivityPlanFlow(app), null, true)
