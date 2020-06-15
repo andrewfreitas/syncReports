@@ -4,6 +4,7 @@ const compress = require('compression')
 const helmet = require('helmet')
 const cors = require('cors')
 const logger = require('./logger')
+const constants = require('./constants')
 require('dotenv').config()
 
 const feathers = require('@feathersjs/feathers')
@@ -52,6 +53,7 @@ app.configure(channels)
 // Configure a middleware for 404s and the error handler
 app.use(express.notFound())
 app.use(express.errorHandler({ logger }))
+app.set('constants', constants)
 
 app.hooks(appHooks)
 require('./shared/sql-connection')(app)

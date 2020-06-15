@@ -21,10 +21,55 @@ const trackingLogObject = (dependencies) => {
 
 const trackingLog = (app) => (dependencies) => {
   app.get('mongoClient').then(db => {
-    db.collection('syncTrackingLog').insert(trackingLogObject(dependencies))
+    db.collection(app.get('constants').syncTrackingLogCollection).insert(trackingLogObject(dependencies))
   })
 }
 
+const setTmp = (app) => (envelope) => {
+  return app.get('mongoClient').then(db => {
+    return db
+      .collection(app.get('constants').activityPlanCollection)
+      .insert({
+        createdAt: new Date(),
+        data: envelope
+      })
+      .then(response => {
+        if (response.result.ok) {
+          return envelope
+        }
+      })
+  })
+}
+
+const removeData = (app) => (envelope) => {
+  return app
+    .get('mongoClient')
+    .then(db => {
+      return db
+        .collection(app.get('constants').activityPlanCollection)
+        .remove({ $or: envelope.map(mp => { return { 'data.PlanoAtividade': mp.PlanoAtividade } }) })
+        .then(response => {
+          console.log(response)
+        })
+    })
+}
+
+const commitPlan = (app) => (envelope) => {
+  return app
+    .get('mongoClient')
+    .then(db => {
+      const bulk = db.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
+      bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
+      envelope.map(mp => {
+        bulk.insert(mp)
+      })
+      bulk.execute()
+    })
+}
+
 module.exports = {
-  trackingLog
+  trackingLog,
+  setTmp,
+  removeData,
+  commitPlan
 }

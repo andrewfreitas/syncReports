@@ -5,8 +5,10 @@ const knexInstance = require('knex')({
     port: Number(process.env.SQL_PORT || 0),
     user: process.env.SQL_USER,
     password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DATABASE
-  }
+    database: process.env.SQL_DATABASE,
+    pool: { min: 0, max: 500 }
+  },
+  pool: { min: 0, max: 500 }
 })
 
 module.exports = (app) => {
