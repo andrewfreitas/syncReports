@@ -40,7 +40,7 @@ const setTmp = (app) => (envelope) => {
     return mongoInstance(data.company)
       .then(connection => {
         return connection
-          .collection(app.get('constants').activityPlanCollection)
+          .collection(app.get('constants').activityPlanCollectionTmp)
           .insert({
             createdAt: new Date(),
             data: envelope
