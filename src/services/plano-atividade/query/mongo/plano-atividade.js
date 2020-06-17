@@ -1,4 +1,7 @@
 const moment = require('moment')
+const _ = require('lodash')
+const path = require('path')
+const { mongoInstance } = require(path.resolve('./src/shared/mongo-connection'))
 
 const generateHash = (dependencies) => {
   const {
@@ -7,6 +10,13 @@ const generateHash = (dependencies) => {
   } = dependencies
 
   return `${company}${activityPlan}${moment().format('YYYYMMDDHHmmss')}`
+}
+
+const splitCompany = (data) => {
+  return _.chain(data)
+    .groupBy('company')
+    .map((value, key) => ({ company: key, data: value }))
+    .value()
 }
 
 const trackingLogObject = (dependencies) => {
@@ -26,50 +36,40 @@ const trackingLog = (app) => (dependencies) => {
 }
 
 const setTmp = (app) => (envelope) => {
-  return app.get('mongoClient').then(db => {
-    return db
-      .collection(app.get('constants').activityPlanCollection)
-      .insert({
-        createdAt: new Date(),
-        data: envelope
+  return Promise.all(splitCompany(envelope).map(data => {
+    return mongoInstance(data.company)
+      .then(connection => {
+        return connection
+          .collection(app.get('constants').activityPlanCollection)
+          .insert({
+            createdAt: new Date(),
+            data: envelope
+          })
+          .then(response => {
+            return response
+          })
       })
-      .then(response => {
-        if (response.result.ok) {
-          return envelope
-        }
-      })
+  })).then(() => {
+    return envelope
   })
 }
 
-const removeData = (app) => (envelope) => {
-  return app
-    .get('mongoClient')
-    .then(db => {
-      return db
-        .collection(app.get('constants').activityPlanCollection)
-        .remove({ $or: envelope.map(mp => { return { 'data.PlanoAtividade': mp.PlanoAtividade } }) })
-        .then(response => {
-          console.log(response)
-        })
-    })
-}
-
 const commitPlan = (app) => (envelope) => {
-  return app
-    .get('mongoClient')
-    .then(db => {
-      const bulk = db.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
-      bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
-      envelope.map(mp => {
-        bulk.insert(mp)
+  return splitCompany(envelope).map(data => {
+    return mongoInstance(data.company)
+      .then(connection => {
+        const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
+        bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
+        envelope.map(mp => {
+          bulk.insert(mp)
+        })
+        bulk.execute()
       })
-      bulk.execute()
-    })
+  })
 }
 
 module.exports = {
   trackingLog,
   setTmp,
-  removeData,
   commitPlan
 }

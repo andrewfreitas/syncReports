@@ -23,7 +23,7 @@ const create = (app) => {
     .then(empresas => {
       empresas.map(empresa => {
         MongoClient
-          .connect(`${process.env.MONGO_HOST}/${empresa.codigo}_${empresa.nome}`)
+          .connect(`${process.env.MONGO_PREFERENCES_DB}/${empresa.codigo}_${empresa.nome}`)
           .then(connection =>
             connection
               .db(`${empresa.codigo}_${empresa.nome}`)

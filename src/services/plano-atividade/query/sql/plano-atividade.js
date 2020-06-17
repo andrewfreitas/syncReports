@@ -41,6 +41,24 @@ const activityPlanApplication = ({ company, PlanoAtividade }) => `
   and  apa.Site in (select Site from Sites with (nolock) where Site = apa.Site and StatusSite = 2)
 `
 
+const activityPlanAudits = ({ company, PlanoAtividade }) => `
+DECLARE @EMPRESA INT = ${company}
+DECLARE @PLANOATIVIDADE INT = ${PlanoAtividade}
+SELECT  PA.AUDITORIAMANUTENCAO AS IDAUDITORIA,
+    AM.NOME AS NOMEAUDITORIA,
+    (SELECT NOME FROM SITES WITH (NOLOCK) WHERE SITE = AM.SITE) AS UNIDADE,
+    AM.DATAVISTORIA AS DATAVISTORIA,
+    (SELECT NOME FROM STATUSAUDITORIAMANUTENCAO WITH(NOLOCK) WHERE STATUSAUDITORIAMANUTENCAO = AM.STATUS) AS STATUSAUDITORIA,
+    (SELECT NOME FROM USUARIOS WITH(NOLOCK) WHERE USUARIO = AM.RESPONSAVEL) AS RESPONSAVEL,
+    AM.COMENTARIOS AS COMENTARIODAAUDITORIA
+FROM    PLANOSATIVIDADES PA WITH(NOLOCK)
+INNER JOIN AUDITORIASMANUTENCAO AM WITH(NOLOCK) ON PA.AUDITORIAMANUTENCAO = AM.AUDITORIAMANUTENCAO
+WHERE  PA.EMPRESA = @EMPRESA
+AND    PA.STATUS = 1
+AND    PA.AUDITORIAMANUTENCAO IS NOT NULL
+AND    PA.PLANOATIVIDADE = @PLANOATIVIDADE
+`
+
 // /**
 //  * Returns activty plan detail
 //  */
@@ -142,6 +160,7 @@ const activityPlanAnomaliesResponsable = (company, anomaly) => `
 module.exports = {
   activityPlanTracking,
   activityPlanApplication,
+  activityPlanAudits,
   activityPlanTasks,
   activityPlanAnomalies,
   activityPlanAnomaliesResponsable,

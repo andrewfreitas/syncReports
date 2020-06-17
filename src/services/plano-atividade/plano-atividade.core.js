@@ -2,24 +2,24 @@ const Cron = require('cron').CronJob
 const {
   activityPlanTracking,
   activityPlanApplication,
+  activityPlanAudits,
   activityPlanTasks
-  // activityPlanAnomalies,
-  // taskPictures,
-  // taskSignatures
 } = require('./query/sql/plano-atividade')
 // const { trackingLog } = require('./query/mongo/tracking-log')
-const { setTmp, removeData, commitPlan } = require('./query/mongo/plano-atividade')
-const { toApplications, toTasks } = require('./mapping/plano-atividade.toResponse')
+const { setTmp, commitPlan } = require('./query/mongo/plano-atividade')
+const { toApplications, toAudit, toTasks } = require('./mapping/plano-atividade.toResponse')
 const moment = require('moment')
-// '2020-04-04 19:20:30.983'
+
+const addObject = (envelope) => (data) => {
+  return Promise.resolve(Object.assign(envelope, data))
+}
+
 const getActivityPlanTracking = (app, { preferences }) => {
   return app
     .get('knexInstance')
-    .raw(
-      activityPlanTracking(
-        moment()
-          .subtract(preferences.retroTime, preferences.retroTimeUnit)
-          .format('YYYY-MM-DD HH:MM:ss')))
+    .raw(activityPlanTracking(moment()
+      .subtract(preferences.retroTime, preferences.retroTimeUnit)
+      .format('YYYY-MM-DD HH:MM:ss')))
 }
 
 const getActivityPlanApplication = (app, envelope) => (deps) => {
@@ -27,6 +27,14 @@ const getActivityPlanApplication = (app, envelope) => (deps) => {
     .get('knexInstance')
     .raw(activityPlanApplication(deps))
     .then(toApplications)
+    .then(addObject(envelope))
+}
+
+const getActivityPlanAudit = (app, envelope) => (deps) => {
+  return app
+    .get('knexInstance')
+    .raw(activityPlanAudits(envelope))
+    .then(toAudit)
     .then(addObject(envelope))
 }
 
@@ -40,14 +48,11 @@ const getActivityPlanTasks = (app, envelope) => (applx) => {
   }))
 }
 
-const addObject = (envelope) => (data) => {
-  return Promise.resolve(Object.assign(envelope, data))
-}
-
 const getX = (app) => (deps) => {
   const envelope = {}
   return addObject(envelope)(deps)
     .then(getActivityPlanApplication(app, envelope))
+    .then(getActivityPlanAudit(app, envelope))
     .then(getActivityPlanTasks(app, envelope))
     .then(() => {
       return envelope
@@ -60,7 +65,6 @@ const startActivityPlanFlow = (app, params) => {
       Promise
         .all(trackingPlans.map(getX(app)))
         .then(setTmp(app))
-        // .then(removeData(app))
         .then(commitPlan(app))
     })
 }
@@ -85,53 +89,3 @@ module.exports = (app) => {
     }
   }
 }
-
-// const getActivityPlanAnomalies = (app, envelope) => (applx) => {
-//   return Promise.all(envelope.applications.map(mp => {
-//     return app
-//       .get('knexInstance')
-//       .raw(getActivityPlanAnomalies(envelope.company, mp.tasks.map(task => task.Tarefa).join(',')))
-//       .then(toTasks)
-//       .then(addObject(mp))
-//   }))
-// }
-
-// const getPictures = (app) => (tasks) => {
-//   const taskParams = tasks[0].map(mp => mp.task).join(',')
-//   return app
-//     .get('knexInstance')
-//     .raw(taskPictures(taskParams))
-//     .then(response => {
-//       if (response.length) {
-//         return response.map(mp => {
-//           return {
-//             tarefa: mp.task,
-//             path: mp.FOTOPATH,
-//             Observacao: mp.OBSERVACAO
-//           }
-//         })
-//       } else {
-//         return null
-//       }
-//     })
-// }
-
-// const getSignatures = (app) => (tasks) => {
-//   const taskParams = tasks[0].map(mp => mp.task).join(',')
-//   return app
-//     .get('knexInstance')
-//     .raw(taskSignatures(taskParams))
-//     .then(response => {
-//       if (response.length) {
-//         return response.map(mp => {
-//           return {
-//             tarefa: mp.task,
-//             path: mp.ASSINATURAPATH,
-//             Usuario: mp.USUARIO
-//           }
-//         })
-//       } else {
-//         return null
-//       }
-//     })
-// }

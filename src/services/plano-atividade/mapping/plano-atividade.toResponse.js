@@ -18,6 +18,21 @@ const toApplications = (data) => {
   }
 }
 
+const toAudit = (data) => {
+  return _.first(data.map(mp => {
+    return {
+      audit: {
+        Responsavel: mp.RESPONSAVEL,
+        IdAuditoria: mp.IDAUDITORIA,
+        NomeAuditoria: mp.NOMEAUDITORIA,
+        Unidade: mp.UNIDADE,
+        DataVistoria: mp.DATAVISTORIA,
+        StatusAuditoria: mp.STATUSAUDITORIA
+      }
+    }
+  }))
+}
+
 const getTasks = (data) => {
   return data.map((mp) => {
     return {
@@ -92,6 +107,7 @@ const toResponse = (data) => {
 
 module.exports = {
   toApplications,
+  toAudit,
   toTasks,
   toPictures,
   toResponse
