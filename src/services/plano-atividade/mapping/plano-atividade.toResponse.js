@@ -66,16 +66,6 @@ const toPictures = (data) => {
   }
 }
 
-const toAnomalies = (data) => {
-  return {
-    audit: data.map(mp => {
-      return {
-        Responsavel: mp.Responsavel
-      }
-    })
-  }
-}
-
 const toResponse = (data) => {
   return data.map(response => {
     if (response.length) {

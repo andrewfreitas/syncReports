@@ -43,7 +43,7 @@ const setTmp = (app) => (envelope) => {
           .collection(app.get('constants').activityPlanCollectionTmp)
           .insert({
             createdAt: new Date(),
-            data: envelope
+            data: data.data
           })
           .then(response => {
             return response
@@ -60,7 +60,7 @@ const commitPlan = (app) => (envelope) => {
       .then(connection => {
         const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
         bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
-        envelope.map(mp => {
+        data.data.map(mp => {
           bulk.insert(mp)
         })
         bulk.execute()
