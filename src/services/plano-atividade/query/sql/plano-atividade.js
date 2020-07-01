@@ -11,8 +11,9 @@ SELECT DISTINCT PLAN_ID as PlanoAtividade
     ON COMPANY.EMPRESA = TRACKING.COMPANY
  INNER JOIN [DBO].PLANOSATIVIDADES PA ON PA.PLANOATIVIDADE = TRACKING.PLAN_ID
    AND TRACKING.COMPANY = PA.EMPRESA
- WHERE TRACKING.LAST_DATE_CHANGED >= '${dateRange}'
+ WHERE TRACKING.LAST_DATE_CHANGED >= '2012-01-01'
    AND COMPANY.STATUS = 1
+   AND COMPANY.Empresa = 1285
 `
 
 /**
@@ -20,12 +21,9 @@ SELECT DISTINCT PLAN_ID as PlanoAtividade
  * @param {*} company
  * @param {*} activityPlan
  */
-const activityPlanApplication = ({ company, PlanoAtividade }) => `
-  DECLARE @Empresa int = ${company}
-  DECLARE @PLANOATIVIDADE int = ${PlanoAtividade}
-
-  SELECT  APA.APLICACAOPLANOATIVIDADE AS IdAplicacao,
-          ${company} as company,
+const activityPlanApplication = (planoAtividade) => `
+  SELECT  COALESCE(APA.APLICACAOPLANOATIVIDADE,0) AS IdAplicacao,
+          APA.PLANOATIVIDADE as planoAtividade,
           A.IDENTIFICACAOAMBIENTE + '/' + A.NOME AS Areas,
           SI.NOME AS Unidades,
           EQ.TAG + '/' + EQ.NOME AS Equipamentos,
@@ -39,14 +37,12 @@ const activityPlanApplication = ({ company, PlanoAtividade }) => `
   LEFT JOIN AREAS A WITH(NOLOCK) ON APA.AREA = A.AREA
   LEFT JOIN EQUIPAMENTOS EQ WITH(NOLOCK) ON APA.EQUIPAMENTO = EQ.EQUIPAMENTO
   INNER JOIN SITES SI WITH(NOLOCK) ON APA.SITE = SI.SITE
-  WHERE    APA.PLANOATIVIDADE = ${PlanoAtividade}
+  WHERE    APA.PLANOATIVIDADE IN (${planoAtividade})
   AND  APA.INATIVO = 0
   AND  SI.STATUSSITE = 2
 `
 
-const activityPlanAudits = ({ company, PlanoAtividade }) => `
-  DECLARE @EMPRESA INT = ${company}
-  DECLARE @PLANOATIVIDADE INT = ${PlanoAtividade}
+const activityPlanAudits = (planoAtividade) => `
 
   SELECT  PA.PLANOATIVIDADE,
           PA.AUDITORIAMANUTENCAO AS IDAUDITORIA,
@@ -65,17 +61,16 @@ const activityPlanAudits = ({ company, PlanoAtividade }) => `
   INNER JOIN USUARIOS U WITH(NOLOCK) ON AM.RESPONSAVEL = U.USUARIO
   WHERE  PA.STATUS = 1
   AND    PA.AUDITORIAMANUTENCAO IS NOT NULL
-  AND    PA.PLANOATIVIDADE = ${PlanoAtividade}
+  AND    PA.PLANOATIVIDADE IN (${planoAtividade})
 `
 
 // /**
 //  * Returns activty plan detail
 //  */
-const activityPlanTasks = (company, { IdAplicacao }) => `
-  DECLARE @EMPRESA INT = ${company}
-  DECLARE @APLICACAOPLANOATIVIDADE INT = ${IdAplicacao}
+const activityPlanTasks = (idAplicacao) => `
 
-  SELECT  ${company} as company,
+
+  SELECT  TRF.APLICACAOPLANOATIVIDADE application,
           TRF.TAREFA as task,
           TRF.DESCRICAO ,
           TRF.DATAPREVISTA ,
@@ -102,7 +97,7 @@ const activityPlanTasks = (company, { IdAplicacao }) => `
   LEFT JOIN ANOMALIAS ANL WITH(NOLOCK) ON TRF.TAREFA = ANL.TAREFA
   LEFT JOIN CONFORMIDADES CF WITH(NOLOCK) ON TRF.CONFORMIDADE  = CF.CONFORMIDADE
   LEFT JOIN AVALIACOES AV WITH(NOLOCK) ON TRF.AVALIACAO  = AV.AVALIACAO
-  WHERE    TRF.APLICACAOPLANOATIVIDADE = ${IdAplicacao}
+  WHERE    TRF.APLICACAOPLANOATIVIDADE IN (${idAplicacao})
   AND  (APA.AREA NOT IN (SELECT A.AREA FROM AREAS A WHERE A.AREA = APA.AREA AND A.INATIVO = 1 ))
   AND  (APA.EQUIPAMENTO NOT IN (SELECT EQ.EQUIPAMENTO FROM EQUIPAMENTOS EQ WITH (NOLOCK) WHERE EQ.EQUIPAMENTO = APA.EQUIPAMENTO AND EQ.INATIVO = 1))
   AND ( EXISTS ( SELECT S.SITE FROM SITESGRUPOSSITES S  WITH (NOLOCK)

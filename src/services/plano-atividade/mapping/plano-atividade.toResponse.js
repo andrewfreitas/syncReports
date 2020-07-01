@@ -13,22 +13,18 @@ const getApplications = (data) => {
 }
 
 const toApplications = (data) => {
-  return {
-    applications: getApplications(data)
-  }
+  return getApplications(data)
 }
 
 const toAudit = (data) => {
   return _.first(data.map(mp => {
     return {
-      audit: {
-        Responsavel: mp.RESPONSAVEL,
-        IdAuditoria: mp.IDAUDITORIA,
-        NomeAuditoria: mp.NOMEAUDITORIA,
-        Unidade: mp.UNIDADE,
-        DataVistoria: mp.DATAVISTORIA,
-        StatusAuditoria: mp.STATUSAUDITORIA
-      }
+      Responsavel: mp.RESPONSAVEL,
+      IdAuditoria: mp.IDAUDITORIA,
+      NomeAuditoria: mp.NOMEAUDITORIA,
+      Unidade: mp.UNIDADE,
+      DataVistoria: mp.DATAVISTORIA,
+      StatusAuditoria: mp.STATUSAUDITORIA
     }
   }))
 }
@@ -49,9 +45,7 @@ const getTasks = (data) => {
 }
 
 const toTasks = (data) => {
-  return {
-    tasks: getTasks(data)
-  }
+  return getTasks(data)
 }
 
 const toPictures = (data) => {
