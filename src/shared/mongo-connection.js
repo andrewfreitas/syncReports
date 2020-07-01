@@ -1,7 +1,7 @@
 const { MongoClient } = require('mongodb')
 
 const mongoInstance = (company) => {
-  return MongoClient.connect(`${process.env.MONGO_HOST}/${company}`, { useNewUrlParser: true })
+  return MongoClient.connect(`${process.env.MONGO_HOST}/${company}?ignoreUndefined=true`, { useNewUrlParser: true })
     .then(client => client.db(company))
 }
 

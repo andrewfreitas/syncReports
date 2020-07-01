@@ -1,14 +1,19 @@
 const _ = require('lodash')
 
+const discardFields = (obj) => {
+  Object.keys(obj).forEach(key => !obj[key] && delete obj[key])
+  return obj
+}
+
 const getApplications = (data) => {
   return data.map((mp) => {
-    return {
+    return discardFields({
       IdAplicacao: mp.IdAplicacao,
       Unidades: mp.Unidades,
       GrupoUnidades: mp.GrupoSites,
       SubGrupoUnides: mp.SubGrupoSite,
       Areas: mp.Areas
-    }
+    })
   })
 }
 
@@ -18,20 +23,20 @@ const toApplications = (data) => {
 
 const toAudit = (data) => {
   return _.first(data.map(mp => {
-    return {
+    return discardFields({
       Responsavel: mp.RESPONSAVEL,
       IdAuditoria: mp.IDAUDITORIA,
       NomeAuditoria: mp.NOMEAUDITORIA,
       Unidade: mp.UNIDADE,
       DataVistoria: mp.DATAVISTORIA,
       StatusAuditoria: mp.STATUSAUDITORIA
-    }
+    })
   }))
 }
 
 const getTasks = (data) => {
   return data.map((mp) => {
-    return {
+    return discardFields({
       Descricao: mp.DESCRICAO,
       DataPrevista: mp.DATAPREVISTA,
       DataRealizada: mp.DATAREALIZADA,
@@ -40,7 +45,7 @@ const getTasks = (data) => {
       TipoValidacao: mp.TIPOVALIDACAO,
       TipoValidacaoNome: mp.TIPOVALIDACAONOME,
       Tarefa: mp.task
-    }
+    })
   })
 }
 

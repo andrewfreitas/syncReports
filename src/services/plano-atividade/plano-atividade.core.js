@@ -1,5 +1,6 @@
 const Cron = require('cron').CronJob
 const {
+  activityPlanCompany,
   activityPlanTracking,
   activityPlanApplication,
   activityPlanAudits,
@@ -21,12 +22,24 @@ const addObject = (envelope) => (data) => {
   return Promise.resolve(Object.assign(envelope, data))
 }
 
-const getActivityPlanTracking = (app, { preferences }) => {
+const getTrackingDate = (params) => {
+  return {
+    init: (params.query && params.query.init) || moment()
+      .subtract(params.preferences.retroTime, params.preferences.retroTimeUnit)
+      .format('YYYY-MM-DD HH:MM:ss'),
+    end: (params.query && params.query.end) || moment().format('YYYY-MM-DD HH:MM:ss'),
+    company: params.query.company || 'COMPANY'
+  }
+}
+
+const getActivityPlanTracking = (app, params) => {
+  const trackingQuery = params.query.all
+    ? activityPlanCompany(params.query)
+    : activityPlanTracking(getTrackingDate(params))
+
   return app
     .get('knexInstance')
-    .raw(activityPlanTracking(moment()
-      .subtract(preferences.retroTime, preferences.retroTimeUnit)
-      .format('YYYY-MM-DD HH:MM:ss')))
+    .raw(trackingQuery)
 }
 
 const getActivityPlanApplication = (app, envelope) => {

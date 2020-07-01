@@ -55,17 +55,21 @@ const setTmp = (app) => (envelope) => {
 }
 
 const commitPlan = (app) => (envelope) => {
-  return splitCompany(envelope).map(data => {
-    return mongoInstance(data.company)
-      .then(connection => {
-        const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
-        bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
-        data.data.map(mp => {
-          bulk.insert(mp)
+  return Promise
+    .all(splitCompany(envelope).map(data => {
+      return mongoInstance(data.company)
+        .then(connection => {
+          const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
+          bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
+          data.data.map(mp => {
+            bulk.insert(mp)
+          })
+          bulk.execute()
         })
-        bulk.execute()
-      })
-  })
+    }))
+    .then(() => {
+      return envelope
+    })
 }
 
 module.exports = {

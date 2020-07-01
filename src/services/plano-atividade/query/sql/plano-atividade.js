@@ -1,8 +1,16 @@
 
+const activityPlanCompany = ({ company }) => `
+SELECT PLANOATIVIDADE as PlanoAtividade
+      ,NOME  AS NomePlano
+      ,EMPRESA as company
+  FROM LEANKEEP.DBO.PLANOSATIVIDADES
+  WHERE EMPRESA = ${company}
+`
+
 /**
  * Return the active companies
  */
-const activityPlanTracking = (dateRange) => `
+const activityPlanTracking = ({ init, end, company }) => `
 SELECT DISTINCT PLAN_ID as PlanoAtividade
       ,PA.NOME AS NomePlano
       ,COMPANY as company
@@ -11,9 +19,10 @@ SELECT DISTINCT PLAN_ID as PlanoAtividade
     ON COMPANY.EMPRESA = TRACKING.COMPANY
  INNER JOIN [DBO].PLANOSATIVIDADES PA ON PA.PLANOATIVIDADE = TRACKING.PLAN_ID
    AND TRACKING.COMPANY = PA.EMPRESA
- WHERE TRACKING.LAST_DATE_CHANGED >= '2012-01-01'
+ WHERE TRACKING.LAST_DATE_CHANGED >= '${init}'
+   AND TRACKING.LAST_DATE_CHANGED <= '${end}'
    AND COMPANY.STATUS = 1
-   AND COMPANY.Empresa = 1285
+   AND COMPANY.EMPRESA = ${company}
 `
 
 /**
@@ -165,6 +174,7 @@ const activityPlanAnomaliesResponsable = (company, anomaly) => `
 `
 
 module.exports = {
+  activityPlanCompany,
   activityPlanTracking,
   activityPlanApplication,
   activityPlanAudits,
