@@ -10,6 +10,7 @@ const { setTmp, commitPlan } = require('./query/mongo/plano-atividade')
 const { toApplications, toAudit, toTasks } = require('./mapping/plano-atividade.toResponse')
 const moment = require('moment')
 const _ = require('lodash')
+const loFp = require('lodash/fp')
 
 const splitCompany = (data) => {
   return _.chain(data)
@@ -71,14 +72,20 @@ const getActivityPlanAudit = (app, envelope) => {
 }
 
 const getActivityPlanTasks = (app, envelope) => {
-  const idAplicacao = envelope.map(mp => mp.applications.map(mp => { return mp.IdAplicacao })).join(',')
-  return app
+  const idAplicacao = _.flatten(envelope.map(mp => {
+    return mp.applications.map(mp => { return mp.IdAplicacao })
+  }))
+  const chunks = loFp.chunk(30, idAplicacao)
+  return Promise.all(chunks.map(chunk => app
     .get('knexInstance')
-    .raw(activityPlanTasks(idAplicacao))
+    .raw(activityPlanTasks(chunk.join(',')))))
     .then(response => {
-      envelope.map(mp => mp.applications.map(mp => {
-        mp.tasks = toTasks(response.filter(f => f.application === mp.IdAplicacao))
-      }))
+      response.map(tasks => {
+        envelope.map(mp => mp.applications.map(mp => {
+          mp.tasks = toTasks(tasks.filter(f => f.application === mp.IdAplicacao))
+        }))
+      })
+
       return envelope
     })
 }
