@@ -14,7 +14,7 @@ const generateHash = (dependencies) => {
 
 const splitCompany = (data) => {
   return _.chain(data)
-    .groupBy('company')
+    .groupBy('Empresa')
     .map((value, key) => ({ company: key, data: value }))
     .value()
 }
@@ -35,22 +35,18 @@ const trackingLog = (app) => (dependencies) => {
   })
 }
 
-const setTmp = (app) => (envelope) => {
-  return Promise.all(splitCompany(envelope).map(data => {
+const setTmp = (app, tasks) => {
+  return Promise.all(splitCompany(tasks).map(data => {
     return mongoInstance(data.company)
       .then(connection => {
-        return connection
-          .collection(app.get('constants').activityPlanCollectionTmp)
-          .insert({
-            createdAt: new Date(),
-            data: data.data
-          })
-          .then(response => {
-            return response
-          })
+        const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
+        data.data.map(mp => {
+          bulk.insert(mp)
+        })
+        bulk.execute()
       })
   })).then(() => {
-    return envelope
+    return tasks
   })
 }
 

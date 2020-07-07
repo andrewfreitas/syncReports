@@ -1,27 +1,65 @@
 const Cron = require('cron').CronJob
 const {
-  activityPlanCompany,
   activityPlanTracking,
-  activityPlanApplication,
-  activityPlanAudits,
   activityPlanTasks
 } = require('./query/sql/plano-atividade')
 const { setTmp, commitPlan } = require('./query/mongo/plano-atividade')
-const { toApplications, toAudit, toTasks } = require('./mapping/plano-atividade.toResponse')
+const { toTasks } = require('./mapping/plano-atividade.toResponse')
 const moment = require('moment')
 const _ = require('lodash')
 const loFp = require('lodash/fp')
+const EventEmitter = require('events')
+const myEmitter = new EventEmitter()
+let chunks = []
 
-const splitCompany = (data) => {
-  return _.chain(data)
-    .groupBy('company')
-    .map((value, key) => ({ company: key, data: value }))
-    .value()
-}
+myEmitter.on('starting', (app, chunks) => {
+  myEmitter.emit('logFlow', 'splitWork in chunks')
+  myEmitter.emit('splitWork', app, chunks)
+})
 
-const addObject = (envelope) => (data) => {
-  return Promise.resolve(Object.assign(envelope, data))
-}
+// Responsavel por dividir as tasks em chunks de processamento
+myEmitter.on('splitWork', (app, chunks) => {
+  myEmitter.emit('logFlow', 'splitWork in chunks')
+  // x.map((mp, idx) => { return { id: idx, data: mp } })
+  myEmitter.emit('queryChunk', app, _.first(chunks))
+})
+
+// Responsavel por pegar o chunk, realizar a query e transformar em objeto
+myEmitter.on('queryChunk', (app, chunk) => {
+  myEmitter.emit('logFlow', 'quering the actually chunk')
+  Promise.all(chunk
+    .data.map(ch => {
+      return app
+        .get('knexInstance')
+        .raw(activityPlanTasks(ch.data))
+    }))
+    .then(response => {
+      response = _.flatten(response).map(toTasks)
+      myEmitter.emit('exportSync', app, chunk, response)
+    })
+})
+
+// Responsavel por gravar no mongo
+myEmitter.on('exportSync', (app, chunk, planActivity) => {
+  myEmitter.emit('logFlow', 'ready to save on mongo')
+  setTmp(app, planActivity)
+    .then(response => {
+      myEmitter.emit('removeFromChunks', app, chunk)
+    })
+})
+
+// Responsavel por logar o processamento
+myEmitter.on('removeFromChunks', (app, chunk) => {
+  myEmitter.emit('logFlow', 'removing processed chunk from chunk list pending')
+  _.remove(chunks, (c) => c.index === chunk.index)
+  if (!chunks.length) {
+    console.log(moment().format('YYYY-MM-DD HH:MM:SS'))
+    return
+  }
+  myEmitter.emit('starting', app, chunks)
+})
+
+myEmitter.on('logFlow', console.log)
 
 const getTrackingDate = (params) => {
   return {
@@ -34,81 +72,41 @@ const getTrackingDate = (params) => {
 }
 
 const getActivityPlanTracking = (app, params) => {
-  const trackingQuery = params.query.all
-    ? activityPlanCompany(params.query)
-    : activityPlanTracking(getTrackingDate(params))
+  const trackingQuery = activityPlanTracking(getTrackingDate(params))
 
   return app
     .get('knexInstance')
     .raw(trackingQuery)
-}
-
-const getActivityPlanApplication = (app, envelope) => {
-  const planoAtividade = envelope.map(mp => mp.PlanoAtividade).join(',')
-
-  return app
-    .get('knexInstance')
-    .raw(activityPlanApplication(planoAtividade))
     .then(response => {
-      envelope.map(mp => {
-        mp.applications = toApplications(response.filter(f => f.planoAtividade === mp.PlanoAtividade))
-      })
-      return envelope
+      chunks = splitTasks(response)
+      chunks = splitConnections(chunks)
+      chunks = applyIdentifier(chunks)
+      myEmitter.emit('starting', app, chunks)
     })
 }
 
-const getActivityPlanAudit = (app, envelope) => {
-  const planoAtividade = envelope.map(mp => mp.PlanoAtividade).join(',')
-
-  return app
-    .get('knexInstance')
-    .raw(activityPlanAudits(planoAtividade))
-    .then(response => {
-      envelope.map(mp => {
-        mp.audit = toAudit(response.filter(f => f.planoAtividade === mp.PLANOATIVIDADE))
+const splitConnections = (chunks) => loFp.chunk(30, chunks)
+const splitTasks = (chunks) => loFp.chunk(30, chunks)
+const applyIdentifier = (chunks) => {
+  return chunks.map((chunk, idx) => {
+    return {
+      index: `splitConn${idx}`,
+      data: chunk.map((mp, idx) => {
+        return {
+          id: `chunks${idx}`,
+          data: mp.map(m => m.task).join(',')
+        }
       })
-      return envelope
-    })
+    }
+  })
 }
-
-const getActivityPlanTasks = (app, envelope) => {
-  const idAplicacao = _.flatten(envelope.map(mp => {
-    return mp.applications.map(mp => { return mp.IdAplicacao })
-  }))
-  const chunks = loFp.chunk(30, idAplicacao)
-  return Promise.all(chunks.map(chunk => app
-    .get('knexInstance')
-    .raw(activityPlanTasks(chunk.join(',')))))
-    .then(response => {
-      response.map(tasks => {
-        envelope.map(mp => mp.applications.map(mp => {
-          mp.tasks = toTasks(tasks.filter(f => f.application === mp.IdAplicacao))
-        }))
-      })
-
-      return envelope
-    })
-}
-
-// const getX = (app) => (deps) => {
-//   const envelope = {}
-//   return addObject(envelope)(deps)
-//     .then(getActivityPlanApplication(app, envelope))
-//     .then(getActivityPlanAudit(app, envelope))
-//     .then(getActivityPlanTasks(app, envelope))
-//     .then(() => {
-//       return envelope
-//     })
-// }
 
 const startActivityPlanFlow = (app, params) => {
+  console.log(moment().format('YYYY-MM-DD HH:MM:SS'))
   return getActivityPlanTracking(app, params)
     .then(trackingPlans => {
-      return getActivityPlanApplication(app, trackingPlans)
-        .then(() => getActivityPlanAudit(app, trackingPlans))
-        .then(() => getActivityPlanTasks(app, trackingPlans))
-        .then(setTmp(app))
-        .then(commitPlan(app))
+      // .then(setTmp(app))
+      // .then(commitPlan(app))
     })
 }
 
