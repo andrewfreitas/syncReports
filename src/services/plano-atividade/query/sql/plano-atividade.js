@@ -8,7 +8,7 @@ SELECT DISTINCT
        COMPANY as company
   FROM TASKS_TRACK_MONGO WITH(NOLOCK)
  WHERE LAST_DATE_CHANGED >= '${init}'
-   AND LAST_DATE_CHANGED <= '${end}'
+   AND LAST_DATE_CHANGED <= '${end} 23:59:59'
    AND COMPANY = ${company}
 `
 
@@ -73,8 +73,26 @@ const activityPlanTasks = (tasks) => `
       AND  APA.INATIVO = 0
       AND  SI.STATUSSITE = 2
 `
+const taskPictures = (tasks) => `
+  SELECT FTR.FOTOPATH,
+         FTR.TAREFA,
+         FTR.OBSERVACAO
+   FROM  FOTOSTAREFAS FTR WITH (NOLOCK)
+  WHERE  FTR.TAREFA IN (${tasks})
+`
+
+const taskSignatures = (tasks) => `
+SELECT FA.ASSINATURAPATH,
+       FA.TAREFA,
+       U.NOME AS USUARIO
+  FROM TAREFASASSINATURAS FA WITH (NOLOCK)
+ INNER JOIN USUARIOS U WITH(NOLOCK) ON FA.USUARIO = U.USUARIO
+ WHERE FA.TAREFA IN (${tasks})
+`
 
 module.exports = {
   activityPlanTracking,
-  activityPlanTasks
+  activityPlanTasks,
+  taskPictures,
+  taskSignatures
 }

@@ -1,7 +1,7 @@
 const Cron = require('cron').CronJob
-const { activityPlanTracking, activityPlanTasks } = require('./query/sql/plano-atividade')
-const { commitPlan, trackingLog } = require('./query/mongo/plano-atividade')
-const { toTasks } = require('./mapping/plano-atividade.toResponse')
+const { activityPlanTracking, activityPlanTasks, taskPictures, taskSignatures } = require('../query/sql/plano-atividade')
+const { commitPlan, trackingLog } = require('../query/mongo/plano-atividade')
+const { toTasks, toPictures, toSignatures } = require('../mapping/plano-atividade.toResponse')
 const loFp = require('lodash/fp')
 const EventEmitter = require('events')
 const event = new EventEmitter()
@@ -57,7 +57,43 @@ event.on('queryTasks', (app, chunk) => {
     }))
     .then(response => {
       response = loFp.flatten(response).map(toTasks)
-      event.emit('exportSync', app, chunk, response)
+      event.emit('queryPictures', app, chunk, response)
+    })
+})
+
+event.on('queryPictures', (app, chunk, tasks) => {
+  Promise.all(chunk
+    .data.map(ch => {
+      return app.get('knexInstance').raw(taskPictures(ch.data))
+    }))
+    .then(response => {
+      response = loFp.flatten(response).map(toPictures)
+      tasks
+        .map(task => {
+          const pictures = response.filter(picture => picture.Tarefa === task.Tarefa)
+          if (pictures.length) {
+            task.pictures = pictures
+          }
+        })
+      event.emit('querySignatures', app, chunk, tasks)
+    })
+})
+
+event.on('querySignatures', (app, chunk, tasks) => {
+  Promise.all(chunk
+    .data.map(ch => {
+      return app.get('knexInstance').raw(taskSignatures(ch.data))
+    }))
+    .then(response => {
+      response = loFp.flatten(response).map(toSignatures)
+      tasks
+        .map(task => {
+          const signatures = response.filter(signature => signature.Tarefa === task.Tarefa)
+          if (signatures.length) {
+            task.signatures = signatures
+          }
+        })
+      event.emit('exportSync', app, chunk, tasks)
     })
 })
 

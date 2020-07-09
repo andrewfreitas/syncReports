@@ -1,25 +1,60 @@
-// const Ajv = require('ajv')
-// const { BadRequest } = require('@feathersjs/errors')
-// const validateSchema = new Ajv().compile(require('../schemas/availability.schema.json'))
+const { BadRequest } = require('@feathersjs/errors')
+const moment = require('moment')
 
-const getGuests = (paxGroupCandidates) => {
-  return paxGroupCandidates.map(mp => mp.guest.map(guest => guest.age.map(age => age.$.value.concat(',')).join('').slice(0, -1))).join('+')
+const getPreferences = async (ctx) => {
+  ctx.params.preferences = await ctx.app
+    .service('preferences')
+    .find()
+    .then(response =>
+      response.data.find(f => f.name === 'planoAtividade')
+    )
+    .catch(error => {
+      console.log(`CANNOT GET REPORT PREFERENCES :: ${error}`)
+    })
+  return ctx
 }
 
-const validate = (ctx) => {
-  // const valid = validateSchema(ctx.data)
+const validateParams = (ctx) => {
+  const {
+    company,
+    init,
+    end
+  } = ctx.params.query
+  if (!company) {
+    throw new BadRequest('The querystring param @company was not found')
+  }
+  if (!init) {
+    throw new BadRequest('The querystring param @init was not found')
+  }
+  if (!end) {
+    throw new BadRequest('The querystring param @init was not found')
+  }
+  return ctx
+}
 
-  // if (!valid) {
-  //   const error = new BadRequest()
-  //   error.className = `${ctx.type} app.service('${ctx.path}').${ctx.method}()`
-  //   error.message = validateSchema.errors.map(mp => mp.message)
-  //   throw error
-  // }
+const getTrackingDateRange = (ctx) => {
+  const {
+    retroTime,
+    retroTimeUnit
+  } = ctx.params.preferences
+
+  const {
+    init,
+    end,
+    company
+  } = ctx.params && ctx.params.query
+
+  ctx.params.query = {
+    init: init || moment().subtract(retroTime, retroTimeUnit).format('YYYY-MM-DD HH:MM:ss'),
+    end: end || moment().format('YYYY-MM-DD HH:MM:ss'),
+    company: company || 'COMPANY'
+  }
 
   return ctx
 }
 
 module.exports = {
-  validate,
-  getGuests
+  getTrackingDateRange,
+  validateParams,
+  getPreferences
 }
