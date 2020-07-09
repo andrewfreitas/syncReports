@@ -3,7 +3,9 @@
  * Return the active companies
  */
 const activityPlanTracking = ({ init, end, company }) => `
-SELECT DISTINCT TASK_ID as task
+SELECT DISTINCT
+       TASK_ID as task,
+       COMPANY as company
   FROM TASKS_TRACK_MONGO WITH(NOLOCK)
  WHERE LAST_DATE_CHANGED >= '${init}'
    AND LAST_DATE_CHANGED <= '${end}'

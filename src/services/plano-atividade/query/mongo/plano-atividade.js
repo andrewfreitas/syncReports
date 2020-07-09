@@ -1,16 +1,6 @@
-const moment = require('moment')
 const _ = require('lodash')
 const path = require('path')
 const { mongoInstance } = require(path.resolve('./src/shared/mongo-connection'))
-
-const generateHash = (dependencies) => {
-  const {
-    activityPlan,
-    company
-  } = dependencies
-
-  return `${company}${activityPlan}${moment().format('YYYYMMDDHHmmss')}`
-}
 
 const splitCompany = (data) => {
   return _.chain(data)
@@ -19,27 +9,28 @@ const splitCompany = (data) => {
     .value()
 }
 
-const trackingLogObject = (dependencies) => {
+const toTrackingLog = (data) => {
   return {
-    hash: generateHash(dependencies),
-    company: dependencies.company,
-    reportName: 'planoAtividade',
-    status: dependencies.status || 'INIT',
-    date: moment().format('YYYY-MM-DD THH:mm:ss.sss')
+    processId: data.processId,
+    createdAt: new Date(),
+    status: data.status,
+    chunksRemaining: data.chunksRemaining
   }
 }
 
-const trackingLog = (app) => (dependencies) => {
-  app.get('mongoClient').then(db => {
-    db.collection(app.get('constants').syncTrackingLogCollection).insert(trackingLogObject(dependencies))
-  })
+const trackingLog = (app, dependencies) => {
+  return mongoInstance(dependencies.company)
+    .then(connection => {
+      connection.collection(app.get('constants').syncTrackingLogCollection).insert(toTrackingLog(dependencies))
+    })
 }
 
-const setTmp = (app, tasks) => {
+const commitPlan = (app, tasks) => {
   return Promise.all(splitCompany(tasks).map(data => {
     return mongoInstance(data.company)
       .then(connection => {
         const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
+        bulk.find({ Tarefa: { $in: data.data.map(mp => mp.Tarefa) } }).remove()
         data.data.map(mp => {
           bulk.insert(mp)
         })
@@ -50,26 +41,7 @@ const setTmp = (app, tasks) => {
   })
 }
 
-const commitPlan = (app) => (envelope) => {
-  return Promise
-    .all(splitCompany(envelope).map(data => {
-      return mongoInstance(data.company)
-        .then(connection => {
-          const bulk = connection.collection(app.get('constants').activityPlanCollection).initializeOrderedBulkOp()
-          bulk.find({ 'data.PlanoAtividade': { $in: envelope.map(mp => mp.PlanoAtividade) } }).remove()
-          data.data.map(mp => {
-            bulk.insert(mp)
-          })
-          bulk.execute()
-        })
-    }))
-    .then(() => {
-      return envelope
-    })
-}
-
 module.exports = {
   trackingLog,
-  setTmp,
   commitPlan
 }

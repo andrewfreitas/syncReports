@@ -1,96 +1,39 @@
 const Cron = require('cron').CronJob
-const {
-  activityPlanTracking,
-  activityPlanTasks
-} = require('./query/sql/plano-atividade')
-const { setTmp, commitPlan } = require('./query/mongo/plano-atividade')
+const { activityPlanTracking, activityPlanTasks } = require('./query/sql/plano-atividade')
+const { commitPlan, trackingLog } = require('./query/mongo/plano-atividade')
 const { toTasks } = require('./mapping/plano-atividade.toResponse')
-const moment = require('moment')
-const _ = require('lodash')
 const loFp = require('lodash/fp')
 const EventEmitter = require('events')
-const myEmitter = new EventEmitter()
+const event = new EventEmitter()
+const uuid = require('uuid')
+
+let uniqueProcess
+let job = {}
 let chunks = []
 
-myEmitter.on('starting', (app, chunks) => {
-  myEmitter.emit('logFlow', 'splitWork in chunks')
-  myEmitter.emit('splitWork', app, chunks)
-})
+/**
+ * Return the quantity of chunks of connections generated to connect at the same time on database
+ * @param {*} chunks Quantity of chunks of data
+ * @param {*} preferences Preferences.splitConnections Quantity of splited connections with amount of data
+ */
+const splitConnections = (chunks, preferences) => loFp.chunk(preferences.splitConnections, chunks)
 
-// Responsavel por dividir as tasks em chunks de processamento
-myEmitter.on('splitWork', (app, chunks) => {
-  myEmitter.emit('logFlow', 'splitWork in chunks')
-  // x.map((mp, idx) => { return { id: idx, data: mp } })
-  myEmitter.emit('queryChunk', app, _.first(chunks))
-})
+/**
+ * Return the quantity of chunks of data will grouped at the same time
+ * @param {*} chunks Quantity of chunks of data
+ * @param {*} preferences Preferences.splitConnections Quantity of splited connections with amount of data
+ */
+const splitTasks = (chunks, preferences) => loFp.chunk(preferences.splitPlans, chunks)
 
-// Responsavel por pegar o chunk, realizar a query e transformar em objeto
-myEmitter.on('queryChunk', (app, chunk) => {
-  myEmitter.emit('logFlow', 'quering the actually chunk')
-  Promise.all(chunk
-    .data.map(ch => {
-      return app
-        .get('knexInstance')
-        .raw(activityPlanTasks(ch.data))
-    }))
-    .then(response => {
-      response = _.flatten(response).map(toTasks)
-      myEmitter.emit('exportSync', app, chunk, response)
-    })
-})
-
-// Responsavel por gravar no mongo
-myEmitter.on('exportSync', (app, chunk, planActivity) => {
-  myEmitter.emit('logFlow', 'ready to save on mongo')
-  setTmp(app, planActivity)
-    .then(response => {
-      myEmitter.emit('removeFromChunks', app, chunk)
-    })
-})
-
-// Responsavel por logar o processamento
-myEmitter.on('removeFromChunks', (app, chunk) => {
-  myEmitter.emit('logFlow', 'removing processed chunk from chunk list pending')
-  _.remove(chunks, (c) => c.index === chunk.index)
-  if (!chunks.length) {
-    console.log(moment().format('YYYY-MM-DD HH:MM:SS'))
-    return
-  }
-  myEmitter.emit('starting', app, chunks)
-})
-
-myEmitter.on('logFlow', console.log)
-
-const getTrackingDate = (params) => {
-  return {
-    init: (params.query && params.query.init) || moment()
-      .subtract(params.preferences.retroTime, params.preferences.retroTimeUnit)
-      .format('YYYY-MM-DD HH:MM:ss'),
-    end: (params.query && params.query.end) || moment().format('YYYY-MM-DD HH:MM:ss'),
-    company: params.query.company || 'COMPANY'
-  }
-}
-
-const getActivityPlanTracking = (app, params) => {
-  const trackingQuery = activityPlanTracking(getTrackingDate(params))
-
-  return app
-    .get('knexInstance')
-    .raw(trackingQuery)
-    .then(response => {
-      chunks = splitTasks(response)
-      chunks = splitConnections(chunks)
-      chunks = applyIdentifier(chunks)
-      myEmitter.emit('starting', app, chunks)
-    })
-}
-
-const splitConnections = (chunks) => loFp.chunk(30, chunks)
-const splitTasks = (chunks) => loFp.chunk(30, chunks)
+/**
+ * Apply identifier to every chunk
+ * @param {*} chunks Chunks of data
+ */
 const applyIdentifier = (chunks) => {
   return chunks.map((chunk, idx) => {
     return {
-      index: `splitConn${idx}`,
+      processId: uuid.v1(),
+      company: loFp.first(chunk) && loFp.first(loFp.first(chunk).map(mp => mp.company)),
       data: chunk.map((mp, idx) => {
         return {
           id: `chunks${idx}`,
@@ -101,31 +44,82 @@ const applyIdentifier = (chunks) => {
   })
 }
 
-const startActivityPlanFlow = (app, params) => {
-  console.log(moment().format('YYYY-MM-DD HH:MM:SS'))
-  return getActivityPlanTracking(app, params)
-    .then(trackingPlans => {
-      // .then(setTmp(app))
-      // .then(commitPlan(app))
+event.on('starting', (app, chunks) => {
+  const processChunk = chunks.pop()
+  event.emit('logFlow', app, processChunk.company, 'PROCESSING', chunks.length)
+  event.emit('queryTasks', app, processChunk)
+})
+
+event.on('queryTasks', (app, chunk) => {
+  Promise.all(chunk
+    .data.map(ch => {
+      return app.get('knexInstance').raw(activityPlanTasks(ch.data))
+    }))
+    .then(response => {
+      response = loFp.flatten(response).map(toTasks)
+      event.emit('exportSync', app, chunk, response)
+    })
+})
+
+event.on('exportSync', (app, chunk, planActivity) => {
+  commitPlan(app, planActivity)
+    .then(() => {
+      if (!chunks.length) {
+        event.emit('logFlow', app, chunk.company, 'FINISHED', chunks.length)
+        console.log('finished')
+        return
+      }
+      event.emit('starting', app, chunks)
+    })
+    .catch(() => {
+      event.emit('logFlow', app, 'ERROR', chunk.length)
+    })
+})
+
+event.on('logFlow', (app, company, status, chunkLength) => {
+  trackingLog(app, { company: company, processId: uniqueProcess, status, chunksRemaining: chunkLength })
+    .then(response => {
+      return true
+    })
+})
+
+const startActivityPlanFlow = (app, trackingQuery, preferences) => {
+  return app
+    .get('knexInstance')
+    .raw(trackingQuery)
+    .then(response => {
+      chunks = splitTasks(response, preferences)
+      chunks = splitConnections(chunks, preferences)
+      chunks = applyIdentifier(chunks)
+      event.emit('starting', app, chunks)
     })
 }
 
 module.exports = (app) => {
-  let job = {}
   return {
     async find (params) {
-      return startActivityPlanFlow(app, params)
+      uniqueProcess = uuid.v1()
+      chunks = []
+      startActivityPlanFlow(app, activityPlanTracking(params.query), params.preferences)
+      return {
+        jobRunning: false,
+        manual: true
+      }
     },
     async create (data, params) {
-      job = new Cron(params.preferences.cronPattern, () => startActivityPlanFlow(app), null, true)
+      uniqueProcess = uuid.v1()
+      chunks = []
+      job = new Cron(params.preferences.cronPattern, () => startActivityPlanFlow(app, activityPlanTracking(params.query), params.preferences), null, true)
       return {
-        isRunning: job.running
+        jobRunning: job.running,
+        manual: false
       }
     },
     async remove (params) {
       job.stop()
       return {
-        isRunning: job.running
+        jobRunning: job.running,
+        manual: false
       }
     }
   }

@@ -13,13 +13,13 @@ const toTasks = (data) => {
     Status: data.STATUS,
     TipoValidacao: data.TIPOVALIDACAO,
     TipoValidacaoNome: data.TIPOVALIDACAONOME,
-    Tarefa: data.task,
+    Tarefa: data.TAREFA,
     application: discardFields({
       IdAplicacao: data.IDAPLICACAO,
       Unidades: data.UNIDADES,
       GrupoUnidades: data.GRUPOSITES,
       SubGrupoUnides: data.SUBGRUPOSITE,
-      Areas: data.Areas
+      Areas: data.AREA
     }),
     audit: discardFields({
       Responsavel: data.RESPONSAVEL,
