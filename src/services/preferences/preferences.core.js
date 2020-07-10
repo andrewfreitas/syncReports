@@ -1,12 +1,23 @@
-const { Service } = require('feathers-mongodb')
-const constants = require('./../../constants')
+const path = require('path')
+const { mongoInstance } = require(path.resolve('./src/shared/mongo-connection'))
 
-exports.Preferences = class Preferences extends Service {
-  constructor (options, app) {
-    super(options)
-
-    app.get('mongoClient').then(db => {
-      this.Model = db.collection(constants.reportPreferencesCollection)
+const getPreferences = (app) => {
+  return mongoInstance(app.get('constants').reportPreferencesDatabase)
+    .then(connection => {
+      return connection
+        .collection(app.get('constants').reportPreferencesCollection)
+        .find({})
+        .toArray()
+        .then(response => {
+          return response
+        })
     })
+}
+
+module.exports = (app) => {
+  return {
+    async find (params) {
+      return getPreferences(app, params)
+    }
   }
 }

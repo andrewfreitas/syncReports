@@ -37,6 +37,7 @@ const applyIdentifier = (chunks) => {
       data: chunk.map((mp, idx) => {
         return {
           id: `chunks${idx}`,
+          company: loFp.first(mp).company,
           data: mp.map(m => m.task).join(',')
         }
       })
@@ -53,11 +54,15 @@ event.on('starting', (app, chunks) => {
 event.on('queryTasks', (app, chunk) => {
   Promise.all(chunk
     .data.map(ch => {
-      return app.get('knexInstance').raw(activityPlanTasks(ch.data))
+      return app.get('knexInstance').raw(activityPlanTasks(ch.company, ch.data))
     }))
     .then(response => {
       response = loFp.flatten(response).map(toTasks)
       event.emit('queryPictures', app, chunk, response)
+    })
+    .catch(err => {
+      console.log(err)
+      throw err
     })
 })
 
@@ -77,6 +82,10 @@ event.on('queryPictures', (app, chunk, tasks) => {
         })
       event.emit('querySignatures', app, chunk, tasks)
     })
+    .catch(err => {
+      console.log(err)
+      throw err
+    })
 })
 
 event.on('querySignatures', (app, chunk, tasks) => {
@@ -95,6 +104,10 @@ event.on('querySignatures', (app, chunk, tasks) => {
         })
       event.emit('exportSync', app, chunk, tasks)
     })
+    .catch(err => {
+      console.log(err)
+      throw err
+    })
 })
 
 event.on('exportSync', (app, chunk, planActivity) => {
@@ -107,8 +120,9 @@ event.on('exportSync', (app, chunk, planActivity) => {
       }
       event.emit('starting', app, chunks)
     })
-    .catch(() => {
-      event.emit('logFlow', app, 'ERROR', chunk.length)
+    .catch(err => {
+      console.log(err)
+      throw err
     })
 })
 

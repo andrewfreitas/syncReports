@@ -6,7 +6,7 @@ const getPreferences = async (ctx) => {
     .service('preferences')
     .find()
     .then(response =>
-      response.data.find(f => f.name === 'planoAtividade')
+      response.find(f => f.name === 'planoAtividade')
     )
     .catch(error => {
       console.log(`CANNOT GET REPORT PREFERENCES :: ${error}`)

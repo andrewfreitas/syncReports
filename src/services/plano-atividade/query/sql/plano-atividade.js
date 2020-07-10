@@ -10,9 +10,10 @@ SELECT DISTINCT
  WHERE LAST_DATE_CHANGED >= '${init}'
    AND LAST_DATE_CHANGED <= '${end} 23:59:59'
    AND COMPANY = ${company}
+   AND PLAN_ID IN (SELECT PLANOATIVIDADE FROM PLANOSATIVIDADES WITH(NOLOCK) WHERE EMPRESA = COMPANY)
 `
 
-const activityPlanTasks = (tasks) => `
+const activityPlanTasks = (company, tasks) => `
     SELECT  TRF.TAREFA,
             TRF.DESCRICAO ,
             TRF.DATAPREVISTA ,
@@ -70,6 +71,7 @@ const activityPlanTasks = (tasks) => `
     LEFT JOIN USUARIOS U WITH(NOLOCK) ON AM.RESPONSAVEL = U.USUARIO
     WHERE TRF.TAREFA IN (${tasks})
       AND  PA.STATUS = 1
+      AND  PA.EMPRESA = ${company}
       AND  APA.INATIVO = 0
       AND  SI.STATUSSITE = 2
 `
