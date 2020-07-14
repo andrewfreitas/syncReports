@@ -4,7 +4,7 @@ const { mongoInstance } = require(path.resolve('./src/shared/mongo-connection'))
 
 const splitCompany = (data) => {
   return _.chain(data)
-    .groupBy('Empresa')
+    .groupBy('IdEmpresa')
     .map((value, key) => ({ company: key, data: value }))
     .value()
 }

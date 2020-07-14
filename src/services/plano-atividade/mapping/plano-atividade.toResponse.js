@@ -1,14 +1,14 @@
 const discardFields = (obj) => {
-  Object.keys(obj).forEach(key => !obj[key] && delete obj[key])
+  Object.keys(obj).forEach(key => (obj[key] === null || obj[key] === undefined) && delete obj[key])
   return obj
 }
 
 const toTasks = (data) => {
   return discardFields({
-    Empresa: data.IDEMPRESA,
-    DescricaoEmpresa: data.EMPRESA,
-    PlanoAtividade: data.PLANOATIVIDADE,
-    NomePlano: data.NOMEPLANO,
+    IdEmpresa: data.IDEMPRESA,
+    Empresa: data.EMPRESA,
+    IdPlanoAtividade: data.PLANOATIVIDADE,
+    PlanoAtividade: data.NOMEPLANO,
     Descricao: data.DESCRICAO,
     Equipamento: data.EQUIPAMENTO,
     DataPrevista: data.DATAPREVISTA,
@@ -21,9 +21,8 @@ const toTasks = (data) => {
     TipoValidacaoNome: data.TIPOVALIDACAONOME,
     Tarefa: data.TAREFA,
     IdAplicacao: data.IDAPLICACAO,
-    Unidades: data.UNIDADES,
-    GrupoUnidades: data.GRUPOSITES,
-    SubGrupoUnides: data.SUBGRUPOSITE,
+    GrupoSites: data.GRUPOSITES,
+    SubGrupoSite: data.SUBGRUPOSITE,
     Areas: data.AREA,
     Responsavel: data.RESPONSAVEL,
     IdAuditoria: data.IDAUDITORIA,
@@ -33,7 +32,11 @@ const toTasks = (data) => {
     StatusAuditoria: data.STATUSAUDITORIA,
     CQA: data.CQA,
     Observacoes: data.OBSERVACOES,
-    ComentariosAuditoria: data.COMENTARIODAAUDITORIA
+    ComentariosAuditoria: data.COMENTARIODAAUDITORIA,
+    IdUnidade: data.IDUNIDADE,
+    IdEquipamento: data.IDEQUIPAMENTO,
+    IdArea: data.IDAREA,
+    IdSistema: data.IDSISTEMA
   })
 }
 
