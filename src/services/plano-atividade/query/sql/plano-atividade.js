@@ -4,13 +4,15 @@
  */
 const activityPlanTracking = ({ init, end, company }) => `
 SELECT DISTINCT
-       TASK_ID as task,
-       COMPANY as company
+        TASK_ID as task,
+        COMPANY as company
   FROM TASKS_TRACK_MONGO WITH(NOLOCK)
  WHERE LAST_DATE_CHANGED >= '${init}'
    AND LAST_DATE_CHANGED <= '${end} 23:59:59'
    AND COMPANY = ${company}
-   AND PLAN_ID IN (SELECT PLANOATIVIDADE FROM PLANOSATIVIDADES WITH(NOLOCK) WHERE EMPRESA = COMPANY)
+   AND PLAN_ID IN (SELECT PA.PLANOATIVIDADE FROM PLANOSATIVIDADES PA WITH(NOLOCK)
+ INNER JOIN APLICACOESPLANOATIVIDADE APA WITH(NOLOCK) ON PA.PLANOATIVIDADE = APA.PLANOATIVIDADE WHERE PA.EMPRESA = COMPANY AND APA.INATIVO =0)
+   AND SITE_ID IN (SELECT SITE FROM SITES WITH(NOLOCK) WHERE SITE = SITE_ID AND STATUSSITE = 2)
 `
 
 const activityPlanTasks = (company, tasks) => `
@@ -28,7 +30,11 @@ const activityPlanTasks = (company, tasks) => `
                             WHEN AT.TIPOVALIDACAO = 3 THEN 'TEXTO'
             END
             ) AS TIPOVALIDACAO,
-            COALESCE(CF.NOME,AV.NOME,TRF.TEXTO) AS TIPOVALIDACAONOME,
+            (case
+              When at.TipoValidacao = 1 Then cf.Nome
+                When at.TipoValidacao = 2 Then av.Nome
+                When at.TipoValidacao = 3 Then trf.Texto
+            end) As TIPOVALIDACAONOME,
             TA.NOME AS TIPOATIVIDADE,
             ANL.CQA,
             APA.APLICACAOPLANOATIVIDADE AS IDAPLICACAO,
@@ -73,7 +79,6 @@ const activityPlanTasks = (company, tasks) => `
     LEFT JOIN STATUSAUDITORIAMANUTENCAO SAM WITH(NOLOCK) ON AM.STATUS = SAM.STATUSAUDITORIAMANUTENCAO
     LEFT JOIN USUARIOS U WITH(NOLOCK) ON AM.RESPONSAVEL = U.USUARIO
     WHERE TRF.TAREFA IN (${tasks})
-      AND  PA.STATUS = 1
       AND  PA.EMPRESA = ${company}
       AND  APA.INATIVO = 0
       AND  SI.STATUSSITE = 2

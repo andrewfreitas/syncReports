@@ -19,9 +19,15 @@ const toTrackingLog = (data) => {
 }
 
 const trackingLog = (app, dependencies) => {
-  return mongoInstance(dependencies.company)
+  return mongoInstance(app.get('constants').reportPreferencesDatabase)
     .then(connection => {
-      connection.collection(app.get('constants').syncTrackingLogCollection).insert(toTrackingLog(dependencies))
+      const logObject = toTrackingLog(dependencies)
+      connection
+        .collection(app.get('constants').syncTrackingLogCollection)
+        .update(
+          { processId: logObject.processId },
+          logObject,
+          { upsert: true })
     })
 }
 
